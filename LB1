@@ -1,0 +1,169 @@
+#define _CRT_SECURE_NO_WARNINGS
+
+#include <iostream>
+#include <stdio.h>
+#include <string.h>
+#include <map>
+#include <windows.h>
+#include <string>
+#include <vector>
+
+using namespace std;
+
+char buffer[255];
+bool inw = false;
+
+int PoiskSlov() {
+
+    int count = 0;
+    FILE* fop = fopen("test.txt", "r");
+    if (fop == NULL) {
+        perror("Error opening file");
+        return 1;
+    }
+
+    map<string, int> wct;
+
+    while (fgets(buffer, sizeof(buffer), fop)) {
+        char word[255];
+        int kolsiminw = 0;
+        for (int i = 0; buffer[i] != '\0'; i++) {
+            if (buffer[i] == ' ' || buffer[i] == '\t' || buffer[i] == '\n' ||
+                buffer[i] == '\r' || buffer[i] == '\v' || buffer[i] == '\f' ||
+                buffer[i] == ',' || buffer[i] == '.' || buffer[i] == '!' ||
+                buffer[i] == '?' || buffer[i] == ':' || buffer[i] == ';' ||
+                buffer[i] == '-' || buffer[i] == '_' || buffer[i] == '+' ||
+                buffer[i] == '=' || buffer[i] == '*' || buffer[i] == '/' ||
+                buffer[i] == '\\' || buffer[i] == '|' || buffer[i] == '&' ||
+                buffer[i] == '^' || buffer[i] == '%' || buffer[i] == '$' ||
+                buffer[i] == '#' || buffer[i] == '@' || buffer[i] == '~' ||
+                buffer[i] == '`' || buffer[i] == '"' || buffer[i] == '\'' ||
+                buffer[i] == '(' || buffer[i] == ')' || buffer[i] == '[' ||
+                buffer[i] == ']' || buffer[i] == '{' || buffer[i] == '}' ||
+                buffer[i] == '<' || buffer[i] == '>') {
+                if (kolsiminw > 0) {
+                    word[kolsiminw] = '\0';
+                    wct[string(word)]++;
+                    kolsiminw = 0;
+                }
+            }
+            else {
+                word[kolsiminw++] = buffer[i];
+            }
+        }
+        if (kolsiminw > 0) {
+            word[kolsiminw] = '\0';
+            wct[string(word)]++;
+        }
+    }
+
+    fclose(fop);
+
+    for (const auto& pair : wct) {
+        printf("%s: %d\n", pair.first.c_str(), pair.second);
+    }
+
+    return 0;
+}
+
+bool cyr(const string& s, size_t i, string& out, int& len) {
+    if (i + 1 >= s.size()) return 0;
+    unsigned char b1 = (unsigned char)s[i];
+    unsigned char b2 = (unsigned char)s[i + 1];
+
+    if (b1 == 0xD0 && b2 >= 0x90 && b2 <= 0x9F) {
+        b2 += 0x20;
+    }
+    else if (b1 == 0xD0 && b2 >= 0xA0 && b2 <= 0xAF) {
+        b1 = 0xD1; b2 -= 0x20;
+    }
+    else if (b1 == 0xD0 && b2 >= 0xB0 && b2 <= 0xBF) {
+    }
+    else if (b1 == 0xD1 && b2 >= 0x80 && b2 <= 0x8F) {
+    }
+    else {
+        return 0;
+    }
+
+    out += (char)b1;
+    out += (char)b2;
+    len = 2;
+    return 1;
+}
+
+vector<string> splitWords(const string& s) {
+    vector<string> res;
+    string cur;
+
+    for (size_t i = 0; i < s.size(); ) {
+        int len = 0;
+        if (cyr(s, i, cur, len)) { i += len; continue; }
+
+        unsigned char c = (unsigned char)s[i];
+        if (isalnum(c)) cur += (char)tolower(c);
+        else if (!cur.empty()) { res.push_back(cur); cur.clear(); }
+        ++i;
+    }
+    if (!cur.empty()) res.push_back(cur);
+    return res;
+}
+
+void WordPositions() {
+    FILE* fop = fopen("test.txt", "r");
+    if (!fop) { perror("Error opening file"); return; }
+
+    string content;
+    char buf[1024];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), fop)) > 0) content.append(buf, n);
+    fclose(fop);
+
+    vector<string> order;
+    map<string, vector<int>> positions;
+
+    int pos = 0;
+    for (const string& w : splitWords(content)) {
+        if (positions.find(w) == positions.end()) order.push_back(w);
+        positions[w].push_back(pos++);
+    }
+
+    for (const string& w : order) {
+        cout << w << " - ";
+        const vector<int>& p = positions[w];
+        for (size_t k = 0; k < p.size(); ++k) {
+            cout << p[k];
+            if (k + 1 < p.size()) cout << ", ";
+        }
+        cout << "\n";
+    }
+}
+
+int main() {
+    SetConsoleOutputCP(65001);
+    SetConsoleCP(65001);
+
+    int choice;
+    while (1) {
+        printf("1. Уникальное слово\n");
+        printf("2. Позиция слов\n");
+        printf("3. выход\n");
+        printf("Ваш выбор: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+        case 1:
+            PoiskSlov();
+            break;
+        case 2:
+        {
+            WordPositions();
+            break;
+        }
+        case 3:
+            return 0;
+        default:
+            printf("Неверный выбор\n");
+        }
+    }
+    return 0;
+}
